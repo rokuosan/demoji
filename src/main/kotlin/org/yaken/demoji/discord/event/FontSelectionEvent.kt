@@ -9,7 +9,8 @@ import dev.kord.rest.builder.message.addFile
 import org.yaken.demoji.emoji.Emoji
 import org.yaken.demoji.emoji.EmojiBuilder
 import org.yaken.demoji.emoji.emojiBuilder
-import kotlin.io.path.Path
+import org.yaken.demoji.util.withCleanup
+import java.nio.file.Files
 
 suspend fun handleEmojiFontSelectionEvent(interaction: SelectMenuInteraction) {
     val fields = interaction.message.data.embeds.first()
@@ -37,19 +38,22 @@ suspend fun handleEmojiFontSelectionEvent(interaction: SelectMenuInteraction) {
         return
     }
 
-    // この規模でミリ秒単位で一致することはないのでこれで良い
-    val now = System.currentTimeMillis()
-    EmojiBuilder.saveImage(image, java.io.File("$now.png"))
+    // For Preview. Create a temp file to attach
+    Files.createTempFile("demoji-", ".png").withCleanup(cleanup = { it ->
+        Files.deleteIfExists(it)
+    }) { tmp ->
+        EmojiBuilder.saveImage(image, tmp.toFile())
 
-    interaction.deferEphemeralMessageUpdate().edit {
-        this.addFile(Path("$now.png"))
-        this.embeds = mutableListOf(emoji.embed())
-        this.actionRow {
-            interactionButton(ButtonStyle.Primary, "accept"){
-                this.label = "登録"
-            }
-            interactionButton(ButtonStyle.Danger, "cancel"){
-                this.label = "キャンセル"
+        interaction.deferEphemeralMessageUpdate().edit {
+            this.addFile(tmp)
+            this.embeds = mutableListOf(emoji.embed())
+            this.actionRow {
+                interactionButton(ButtonStyle.Primary, "accept") {
+                    this.label = "登録"
+                }
+                interactionButton(ButtonStyle.Danger, "cancel") {
+                    this.label = "キャンセル"
+                }
             }
         }
     }
