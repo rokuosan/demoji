@@ -10,7 +10,7 @@ on:
       - synchronize
       - reopened
     paths:
-      - ".github/workflows/image-build-and-push.yaml"
+      - ".github/workflows/build.yaml"
       - "Dockerfile"
   workflow_dispatch:
 
