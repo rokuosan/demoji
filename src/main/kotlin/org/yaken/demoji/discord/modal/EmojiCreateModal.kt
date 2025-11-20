@@ -2,11 +2,7 @@ package org.yaken.demoji.discord.modal
 
 import dev.kord.common.entity.TextInputStyle
 import dev.kord.core.behavior.interaction.modal
-import dev.kord.core.behavior.interaction.response.respond
-import dev.kord.core.entity.interaction.GuildModalSubmitInteraction
 import dev.kord.core.event.interaction.GuildChatInputCommandInteractionCreateEvent
-import dev.kord.rest.builder.component.option
-import dev.kord.rest.builder.message.actionRow
 import org.yaken.demoji.emoji.Emoji
 
 suspend fun GuildChatInputCommandInteractionCreateEvent.openEmojiCreateModal(
