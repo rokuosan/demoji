@@ -1,13 +1,13 @@
-package org.yaken.demoji.discord.modal
+package org.yaken.demoji.infrastructure.discord.modal
 
 import dev.kord.common.entity.TextInputStyle
-import dev.kord.core.behavior.interaction.modal
-import dev.kord.core.event.interaction.GuildChatInputCommandInteractionCreateEvent
-import org.yaken.demoji.emoji.Emoji
+import dev.kord.rest.builder.interaction.ModalBuilder
+import org.yaken.demoji.domain.entity.Emoji
 
-suspend fun GuildChatInputCommandInteractionCreateEvent.openEmojiCreateModal(
-    emoji: Emoji = Emoji(null, "よさ\nそう", "#EC71A1", "transparent")
-) = interaction.modal("絵文字ジェネレータ", "emoji_generator") {
+fun createEmojiModal(
+    emoji: Emoji = Emoji(text = "よさ\nそう", color= "#EC71A1", bgColor = "transparent")
+): ModalBuilder.() -> Unit {
+    return {
         this.actionRow {
             this.textInput(TextInputStyle.Short, "name", "名前") {
                 this.placeholder = "コロンなしで名前を入力（例: yosasou)"
@@ -38,3 +38,4 @@ suspend fun GuildChatInputCommandInteractionCreateEvent.openEmojiCreateModal(
             }
         }
     }
+}

@@ -1,68 +1,89 @@
-package org.yaken.demoji.emoji
+package org.yaken.demoji.infrastructure.generator
 
+import org.yaken.demoji.common.Result
+import org.yaken.demoji.common.err
+import org.yaken.demoji.common.ok
+import org.yaken.demoji.domain.entity.Emoji
+import org.yaken.demoji.domain.service.EmojiGeneratorService
 import java.awt.AlphaComposite
-import java.awt.Color
 import java.awt.Font
 import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.font.TextAttribute
 import java.awt.geom.AffineTransform
 import java.awt.image.BufferedImage
-import java.io.File
+import java.nio.file.Path
 import javax.imageio.ImageIO
 
-class EmojiBuilder(
+
+class EmojiGenerator(
+    private val autoWidth: Boolean = true,
     private val width: Int = 128,
     private val height: Int = 128,
-) {
-    var text: String = ""
-    var fontFile: File? = null
-    var color: Color? = Color.ORANGE
-    var bgColor: Color? = null
-    var autoWidth: Boolean = true
+) : EmojiGeneratorService {
+    override fun generateImageFromEmoji(emoji: Emoji): Result<BufferedImage, Error> {
+        return try {
+            val image = build(emoji)
+            ok(image)
+        } catch (e: Exception) {
+            err(Error("Failed to generate image: ${e.message}"))
+        }
+    }
 
-    fun build(): BufferedImage {
-        val font = loadFont()
+    override fun generateImageToTempFile(emoji: Emoji): Result<Path, Error> {
+        return try {
+            val image = build(emoji)
+            val tempFile = kotlin.io.path.createTempFile(suffix = ".png")
+            ImageIO.write(image, "PNG", tempFile.toFile())
+            ok(tempFile)
+        } catch (e: Exception) {
+            err(Error("Failed to generate image file: ${e.message}"))
+        }
+    }
+
+    private fun build(emoji: Emoji): BufferedImage {
         val image = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
         val graphics = image.createGraphics()
 
-        applyBackground(graphics)
-        drawText(graphics, font)
+        applyBackground(emoji, graphics)
+        drawText(emoji, graphics, getFont(emoji))
 
         graphics.dispose()
         return image
     }
 
-    private fun loadFont(): Font {
-        return if (fontFile?.exists() == true) {
-            Font.createFont(Font.TRUETYPE_FONT, fontFile).deriveFont(32f)
+    private fun getFont(emoji: Emoji): Font {
+        return if (emoji.fontFile()?.exists() == true) {
+            Font.createFont(Font.TRUETYPE_FONT, emoji.fontFile())
+                .deriveFont(32f)
         } else {
             Font("SansSerif", Font.BOLD, 32)
         }
     }
 
-    private fun applyBackground(graphics: Graphics2D) {
-        if (bgColor == null) {
+    private fun applyBackground(emoji: Emoji, graphics: Graphics2D) {
+        val bg = emoji.bgColorInAwtOrNull()
+        if (bg == null) {
             graphics.composite = AlphaComposite.Clear
             graphics.fillRect(0, 0, width, height)
             graphics.composite = AlphaComposite.SrcOver
         } else {
-            graphics.color = bgColor
+            graphics.color = bg
             graphics.fillRect(0, 0, width, height)
         }
     }
 
-    private fun drawText(graphics: Graphics2D, font: Font) {
+    private fun drawText(emoji: Emoji, graphics: Graphics2D, font: Font) {
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
         graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
-        graphics.color = color
+        graphics.color = emoji.colorInAWT()
 
         val tracking = -0.1
         val attributes = mapOf(TextAttribute.TRACKING to tracking)
         val tightFont = font.deriveFont(attributes)
 
-        val lines = text.split("\n").filter { it.isNotEmpty() }
+        val lines = (emoji.text ?: "").split("\n").filter { it.isNotEmpty() }
         if (lines.isEmpty()) return
 
         val frc = graphics.fontRenderContext
@@ -93,14 +114,4 @@ class EmojiBuilder(
             graphics.fill(transform.createTransformedShape(outline))
         }
     }
-
-    companion object {
-        fun saveImage(image: BufferedImage, outputFile: File) {
-            ImageIO.write(image, "png", outputFile)
-        }
-    }
-}
-
-fun emojiBuilder(init: EmojiBuilder.() -> Unit): BufferedImage {
-    return EmojiBuilder().apply(init).build()
 }

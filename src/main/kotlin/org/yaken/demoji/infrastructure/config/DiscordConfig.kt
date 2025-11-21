@@ -1,4 +1,4 @@
-package org.yaken.demoji.config
+package org.yaken.demoji.infrastructure.config
 
 import dev.kord.common.entity.Snowflake
 
