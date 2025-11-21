@@ -6,6 +6,6 @@ import java.awt.image.BufferedImage
 import java.nio.file.Path
 
 interface EmojiGeneratorService {
-    fun generateImageFromEmoji(emoji: Emoji): Result<BufferedImage, Error>
-    fun generateImageToTempFile(emoji: Emoji): Result<Path, Error>
+    suspend fun generateImageFromEmoji(emoji: Emoji): Result<BufferedImage, Error>
+    suspend fun generateImageToTempFile(emoji: Emoji): Result<Path, Error>
 }

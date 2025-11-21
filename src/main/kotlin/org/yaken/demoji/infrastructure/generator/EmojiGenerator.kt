@@ -5,6 +5,7 @@ import org.yaken.demoji.common.err
 import org.yaken.demoji.common.ok
 import org.yaken.demoji.domain.entity.Emoji
 import org.yaken.demoji.domain.service.EmojiGeneratorService
+import org.yaken.demoji.infrastructure.otel.withSpan
 import java.awt.AlphaComposite
 import java.awt.Font
 import java.awt.Graphics2D
@@ -21,8 +22,9 @@ class EmojiGenerator(
     private val width: Int = 128,
     private val height: Int = 128,
 ) : EmojiGeneratorService {
-    override fun generateImageFromEmoji(emoji: Emoji): Result<BufferedImage, Error> {
-        return try {
+    override suspend fun generateImageFromEmoji(emoji: Emoji): Result<BufferedImage, Error> =
+        withSpan("Generate Image From Emoji") {
+            return@withSpan try {
             val image = build(emoji)
             ok(image)
         } catch (e: Exception) {
@@ -30,7 +32,7 @@ class EmojiGenerator(
         }
     }
 
-    override fun generateImageToTempFile(emoji: Emoji): Result<Path, Error> {
+    override suspend fun generateImageToTempFile(emoji: Emoji): Result<Path, Error> {
         return try {
             val image = build(emoji)
             val tempFile = kotlin.io.path.createTempFile(suffix = ".png")
@@ -41,7 +43,7 @@ class EmojiGenerator(
         }
     }
 
-    private fun build(emoji: Emoji): BufferedImage {
+    private suspend fun build(emoji: Emoji): BufferedImage = withSpan("Build Emoji Image") {
         val image = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
         val graphics = image.createGraphics()
 
@@ -49,7 +51,7 @@ class EmojiGenerator(
         drawText(emoji, graphics, getFont(emoji))
 
         graphics.dispose()
-        return image
+        return@withSpan image
     }
 
     private fun getFont(emoji: Emoji): Font {
@@ -61,7 +63,7 @@ class EmojiGenerator(
         }
     }
 
-    private fun applyBackground(emoji: Emoji, graphics: Graphics2D) {
+    private suspend fun applyBackground(emoji: Emoji, graphics: Graphics2D) = withSpan("Apply Background") {
         val bg = emoji.bgColorInAwtOrNull()
         if (bg == null) {
             graphics.composite = AlphaComposite.Clear
@@ -73,7 +75,7 @@ class EmojiGenerator(
         }
     }
 
-    private fun drawText(emoji: Emoji, graphics: Graphics2D, font: Font) {
+    private suspend fun drawText(emoji: Emoji, graphics: Graphics2D, font: Font) = withSpan("Draw Text") {
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
         graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
@@ -84,7 +86,7 @@ class EmojiGenerator(
         val tightFont = font.deriveFont(attributes)
 
         val lines = (emoji.text ?: "").split("\n").filter { it.isNotEmpty() }
-        if (lines.isEmpty()) return
+        if (lines.isEmpty()) return@withSpan
 
         val frc = graphics.fontRenderContext
 

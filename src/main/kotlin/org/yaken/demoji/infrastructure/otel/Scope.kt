@@ -12,7 +12,9 @@ suspend fun <T> withTracer(name: String, block: suspend (Tracer) -> T): T {
 suspend fun <T> Tracer.withSpan(name: String, block: suspend (Span) -> T): T {
     val span = this.spanBuilder(name).startSpan()
     return try {
-        block(span)
+        span.makeCurrent().use{
+            block(span)
+        }
     } finally {
         span.end()
     }
