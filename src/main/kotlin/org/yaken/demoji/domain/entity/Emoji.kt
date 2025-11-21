@@ -60,7 +60,7 @@ data class Emoji(
     fun toEmbed(): EmbedBuilder {
         return EmbedBuilder().apply {
             this.color = kordColor(this@Emoji.color)
-            val values  = listOf(name, text, this@Emoji.color, bgColor)
+            val values  = listOf(name, text, this@Emoji.color, bgColor, font)
             footer { this.text = id }
             EmbedFiledName.listInJapanese().zip(values).forEach { (field, value) ->
                 this.field {
