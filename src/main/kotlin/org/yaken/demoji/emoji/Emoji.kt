@@ -36,11 +36,8 @@ data class Emoji(
     fun bgColorInAwtOrNull() = awtColor(bgColor)
 
     fun fontFile() = font?.let {
-        val t = File(it)
-        if (t.exists()) t
-        val tt = File("fonts/$it")
-        if (tt.exists()) tt
-        null
+        val tt = File("fonts", it)
+        if (tt.exists()) tt else null
     }
 
     fun validate(strict: Boolean = false): String? {
