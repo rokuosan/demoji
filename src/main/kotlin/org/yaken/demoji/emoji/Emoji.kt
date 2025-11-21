@@ -1,12 +1,10 @@
 package org.yaken.demoji.emoji
 
 import dev.kord.core.cache.data.EmbedData
-import dev.kord.core.cache.data.EmbedFieldData
-import dev.kord.core.entity.Embed
 import dev.kord.core.entity.interaction.ModalSubmitInteraction
 import dev.kord.rest.builder.message.EmbedBuilder
 import java.io.File
-import java.util.UUID
+import java.util.*
 
 
 private enum class EmbedFiledName(
@@ -37,7 +35,13 @@ data class Emoji(
     fun colorInAwt() = java.awt.Color(hexColor(color) ?: 0)
     fun bgColorInAwtOrNull() = awtColor(bgColor)
 
-    fun fontFile() = font?.let { File(it) }
+    fun fontFile() = font?.let {
+        val t = File(it)
+        if (t.exists()) t
+        val tt = File("fonts/$it")
+        if (tt.exists()) tt
+        null
+    }
 
     fun validate(strict: Boolean = false): String? {
         if (strict && name == null) return "名前は必須です"

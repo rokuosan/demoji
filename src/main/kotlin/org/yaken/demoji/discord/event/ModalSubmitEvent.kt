@@ -23,7 +23,7 @@ suspend fun handleEmojiCreateModalSubmit(interaction: GuildModalSubmitInteractio
         this.actionRow {
             this.stringSelect("font") {
                 this.placeholder = "フォントを選択してください"
-                this.option("Noto Sans Mono CJK JP", "Noto Sans Mono CJK JP")
+                this.option("Noto Sans Mono CJK JP", "NotoSansMonoCJKjp-Bold.otf")
             }
         }
     }
