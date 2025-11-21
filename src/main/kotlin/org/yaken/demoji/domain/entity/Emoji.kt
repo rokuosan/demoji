@@ -92,6 +92,7 @@ data class Emoji(
                 text = nameToValue[EmbedFiledName.TEXT.ja],
                 color = nameToValue[EmbedFiledName.COLOR.ja],
                 bgColor = nameToValue[EmbedFiledName.BG_COLOR.ja],
+                font = nameToValue[EmbedFiledName.FONT.ja],
                 id = id
             )
         }
