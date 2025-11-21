@@ -4,7 +4,9 @@ import java.awt.AlphaComposite
 import java.awt.Color
 import java.awt.Font
 import java.awt.Graphics2D
-import java.awt.font.FontRenderContext
+import java.awt.RenderingHints
+import java.awt.font.TextAttribute
+import java.awt.geom.AffineTransform
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
@@ -51,37 +53,44 @@ class EmojiBuilder(
     }
 
     private fun drawText(graphics: Graphics2D, font: Font) {
-        graphics.font = font
+        graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+        graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+        graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
         graphics.color = color
-        val frc = FontRenderContext(null, true, true)
-        val lines = text.split("\n")
 
-        // 行間の調整
-        val lineSpacingFactor = 0.8
-        val lineHeights = lines.map { font.getLineMetrics(it, frc).height * lineSpacingFactor }
-        val totalTextHeight = lineHeights.sum()
-        val stretchY = (height - 10) / totalTextHeight
-        val margin = (height - lines.sumOf {
-            font.getLineMetrics(it, frc).height * lineSpacingFactor * stretchY
-        }) / 2
+        val tracking = -0.1
+        val attributes = mapOf(TextAttribute.TRACKING to tracking)
+        val tightFont = font.deriveFont(attributes)
 
-        // テキストを中央に配置するためのオフセット計算
-        var yOffset = (height - 10 - totalTextHeight * stretchY) / 2
-        for ((index, line) in lines.withIndex()) {
-            val lineBounds = font.getStringBounds(line, frc)
-            val textWidth = lineBounds.width.toInt()
-            val stretchX = if (autoWidth) width / textWidth.toDouble() else 1.0
-            val x = (width - textWidth * stretchX) / 2
-            val ascent = font.getLineMetrics(line, frc).ascent
-            val y = yOffset + ascent * stretchY - margin
+        val lines = text.split("\n").filter { it.isNotEmpty() }
+        if (lines.isEmpty()) return
 
-            graphics.translate(x, y)
-            graphics.scale(stretchX, stretchY)
-            graphics.drawString(line, 0, 0)
-            graphics.scale(1.0 / stretchX, 1.0 / stretchY)
-            graphics.translate(-x, -y)
+        val frc = graphics.fontRenderContext
 
-            yOffset += lineHeights[index] * stretchY
+        val heightPerLine = height.toDouble() / lines.size
+
+        lines.forEachIndexed { index, line ->
+            // 図形（GlyphVector）として扱う
+            val glyphVector = tightFont.createGlyphVector(frc, line)
+            val outline = glyphVector.outline
+
+            // 図形の正確な範囲（インクがある部分の境界線）を取得
+            val visualBounds = glyphVector.visualBounds
+
+            // 横方向の倍率計算 (キャンバス幅 / 図形の実質の幅)
+            val scaleX = if (autoWidth && visualBounds.width > 0) width.toDouble() / visualBounds.width else 1.0
+
+            // 縦方向の倍率計算 (1行分の高さ / 図形の実質の高さ)
+            val scaleY = if (visualBounds.height > 0) heightPerLine / visualBounds.height else 1.0
+
+            val transform = AffineTransform()
+            transform.translate(0.0, index * heightPerLine)
+            transform.scale(scaleX, scaleY)
+            // 図形の左上を原点(0,0)に合わせる
+            // visualBounds.x/y はベースラインからのオフセットなので、それを打ち消す
+            transform.translate(-visualBounds.x, -visualBounds.y)
+
+            graphics.fill(transform.createTransformedShape(outline))
         }
     }
 
