@@ -40,7 +40,6 @@ object OpenTelemetryConfig {
             Resource.create(
                 Attributes.of(
                     AttributeKey.stringKey("service.name"), serviceName,
-                    AttributeKey.stringKey("deployment.environment.name"), "local",
                 )
             )
         )
