@@ -43,10 +43,11 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
 
     // OpenTelemetry - manual instrumentation
-    implementation("io.opentelemetry:opentelemetry-api:1.30.0")
-    implementation("io.opentelemetry:opentelemetry-sdk:1.30.0")
-    implementation("io.opentelemetry:opentelemetry-exporter-logging:1.30.0")
-    implementation("io.opentelemetry:opentelemetry-exporter-otlp:1.30.0")
+    implementation(platform("io.opentelemetry:opentelemetry-bom:1.62.0"))
+    implementation("io.opentelemetry:opentelemetry-api")
+    implementation("io.opentelemetry:opentelemetry-sdk")
+    implementation("io.opentelemetry:opentelemetry-exporter-logging")
+    implementation("io.opentelemetry:opentelemetry-exporter-otlp")
 
     // Test
     testImplementation("io.kotest:kotest-runner-junit5:5.9.1")
