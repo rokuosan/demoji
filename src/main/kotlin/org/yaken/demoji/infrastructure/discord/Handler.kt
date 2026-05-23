@@ -17,11 +17,13 @@ import org.yaken.demoji.common.Result
 import org.yaken.demoji.domain.entity.Emoji
 import org.yaken.demoji.domain.service.EmojiGeneratorService
 import org.yaken.demoji.infrastructure.discord.modal.createEmojiModal
-import org.yaken.demoji.infrastructure.otel.withTracer
+import io.opentelemetry.api.trace.Tracer
+import org.yaken.demoji.infrastructure.otel.inSpan
 import org.yaken.demoji.util.createEmoji
 import java.nio.file.Files
 
 class Handler(
+    private val tracer: Tracer,
     private val generator: EmojiGeneratorService,
     private val emojiFontUseCase: EmojiFontUseCase,
 ) {
@@ -33,12 +35,12 @@ class Handler(
      * @return モーダル表示のレスポンス
      */
     suspend fun handleEmoCommand(interaction: GuildChatInputCommandInteraction): PopupInteractionResponseBehavior {
-            return interaction.modal(
-                title = "絵文字ジェネレータ",
-                customId = "emoji_generator",
-                builder = createEmojiModal(),
-            )
-        }
+        return interaction.modal(
+            title = "絵文字ジェネレータ",
+            customId = "emoji_generator",
+            builder = createEmojiModal(),
+        )
+    }
 
     /**
      * 絵文字作成モーダルで送信ボタンが押された時のハンドラー。
@@ -46,34 +48,34 @@ class Handler(
      *
      * @param interaction モーダルの送信インタラクション
      */
-    suspend fun handleEmojiCreateModalSubmit(interaction: GuildModalSubmitInteraction) = withTracer(
-        name = "Handle Emoji Creation Modal Submit"
-    ) {
-        val emoji = Emoji.fromInteraction(interaction)
+    suspend fun handleEmojiCreateModalSubmit(interaction: GuildModalSubmitInteraction) =
+        tracer.inSpan("discord.modal_submit.handle_create_emoji") {
+            val emoji = Emoji.fromInteraction(interaction)
 
-        val result = emoji.validate()
-        if (result is Result.Err) {
-            interaction.deferEphemeralResponse().respond {
-                content = result.error
+            val result = emoji.validate()
+            if (result is Result.Err) {
+                interaction.deferEphemeralResponse().respond {
+                    content = result.error
+                }
+                setAttribute("validation.error", true)
+                return@inSpan
             }
-            return@withTracer
-        }
 
-        val fonts = emojiFontUseCase.getAvailableFonts()
+            val fonts = emojiFontUseCase.getAvailableFonts()
 
-        interaction.deferEphemeralResponse().respond {
-            this.content = "フォントを選択してください"
-            this.embeds = mutableListOf(emoji.toEmbed())
-            this.actionRow {
-                this.stringSelect("font") {
-                    this.placeholder = "フォントを選択してください"
-                    for (font in fonts) {
-                        this.option(font.name, font.filename)
+            interaction.deferEphemeralResponse().respond {
+                this.content = "フォントを選択してください"
+                this.embeds = mutableListOf(emoji.toEmbed())
+                this.actionRow {
+                    this.stringSelect("font") {
+                        this.placeholder = "フォントを選択してください"
+                        for (font in fonts) {
+                            this.option(font.name, font.filename)
+                        }
                     }
                 }
             }
         }
-    }
 
     /**
      * フォント選択セレクトメニューが操作された時のハンドラー。
