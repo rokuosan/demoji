@@ -57,7 +57,7 @@ class Handler(
                 interaction.deferEphemeralResponse().respond {
                     content = result.error
                 }
-                setAttribute("validation.error", true)
+                setAttribute("validation.failed", true)
                 return@inSpan
             }
 

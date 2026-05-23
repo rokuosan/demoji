@@ -14,6 +14,7 @@ import io.opentelemetry.sdk.trace.export.BatchSpanProcessor
 object OpenTelemetryConfig {
     private const val instrumentationScopeName = "org.yaken.demoji"
     private const val serviceNameKey = "service.name"
+    private const val otlpTracesEndpointEnv = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
 
     lateinit var openTelemetry: OpenTelemetry
         private set
@@ -26,7 +27,10 @@ object OpenTelemetryConfig {
      * When an OTLP endpoint is provided, spans are exported there via HTTP.
      * Otherwise, spans are written to the log exporter for local debugging.
      */
-    fun initialize(serviceName: String = "demoji", otlpEndpoint: String? = null): OpenTelemetry {
+    fun initialize(
+        serviceName: String = "demoji",
+        otlpEndpoint: String? = System.getenv(otlpTracesEndpointEnv),
+    ): OpenTelemetry {
         if (this::openTelemetry.isInitialized) {
             return openTelemetry
         }
