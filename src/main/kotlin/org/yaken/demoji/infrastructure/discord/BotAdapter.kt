@@ -1,7 +1,6 @@
 package org.yaken.demoji.infrastructure.discord
 
 import dev.kord.core.Kord
-import dev.kord.core.event.interaction.ActionInteractionCreateEvent
 import dev.kord.core.event.interaction.ButtonInteractionCreateEvent
 import dev.kord.core.event.interaction.GuildChatInputCommandInteractionCreateEvent
 import dev.kord.core.event.interaction.GuildModalSubmitInteractionCreateEvent
@@ -9,13 +8,12 @@ import dev.kord.core.event.interaction.SelectMenuInteractionCreateEvent
 import dev.kord.core.on
 import dev.kord.gateway.Intent
 import dev.kord.gateway.PrivilegedIntent
-import io.opentelemetry.api.common.Attributes
 import io.opentelemetry.api.trace.Tracer
 import org.slf4j.Logger
 import org.yaken.demoji.application.usecase.EmojiFontUseCase
 import org.yaken.demoji.domain.service.EmojiGeneratorService
 import org.yaken.demoji.infrastructure.config.DiscordConfig
-import org.yaken.demoji.infrastructure.otel.withSpan
+import org.yaken.demoji.infrastructure.otel.inSpan
 
 class DiscordBotAdapter(
     private val logger: Logger,
@@ -25,60 +23,57 @@ class DiscordBotAdapter(
     private val emojiFontUseCase: EmojiFontUseCase,
 ) {
     private val handler = Handler(
+        tracer = tracer,
         generator = generator,
         emojiFontUseCase = emojiFontUseCase,
     )
     private lateinit var bot: Kord
 
-    fun getRequestAttributes(event: ActionInteractionCreateEvent): Attributes {
-        return Attributes.builder().apply {
-            put("interaction.id", event.interaction.id.toString())
-            put("interaction.type", event.interaction.type.toString())
-            put("user.id", event.interaction.user.id.toString())
-        }.build()
-    }
-
     suspend fun start() = with(Kord(config.BotToken)) {
         bot = this
         on<GuildChatInputCommandInteractionCreateEvent> {
-            tracer.withSpan("onGuildChatInputCommandInteractionCreateEvent") {
-                it.setAllAttributes(getRequestAttributes(this))
+            tracer.inSpan("discord.command.interaction") {
+                setAttribute("discord.command.name", interaction.invokedCommandName)
+                setAttribute("discord.interaction.type", interaction.type.toString())
                 when (interaction.invokedCommandName) {
-                    "emo" -> withSpan("handleEmoCommand") {
+                    "emo" -> tracer.inSpan("discord.command.emo") {
                         handler.handleEmoCommand(interaction)
                     }
                 }
             }
         }
         on<GuildModalSubmitInteractionCreateEvent> {
-            tracer.withSpan("onGuildModalSubmitInteractionCreateEvent") {
-                it.setAllAttributes(getRequestAttributes(this))
+            tracer.inSpan("discord.modal_submit.interaction") {
+                setAttribute("discord.modal.id", interaction.modalId)
+                setAttribute("discord.interaction.type", interaction.type.toString())
                 when (interaction.modalId) {
-                    "emoji_generator" -> withSpan("handleEmojiCreateModalSubmit") {
+                    "emoji_generator" -> tracer.inSpan("discord.modal_submit.emoji_generator") {
                         handler.handleEmojiCreateModalSubmit(interaction)
                     }
                 }
             }
         }
         on<SelectMenuInteractionCreateEvent> {
-            tracer.withSpan("onSelectMenuInteractionCreateEvent") {
-                it.setAllAttributes(getRequestAttributes(this))
+            tracer.inSpan("discord.select_menu.interaction") {
+                setAttribute("discord.component.id", interaction.componentId)
+                setAttribute("discord.interaction.type", interaction.type.toString())
                 when (interaction.componentId) {
-                    "font" -> withSpan("handleEmojiFontSelectionEvent") {
+                    "font" -> tracer.inSpan("discord.select_menu.font") {
                         handler.handleEmojiFontSelectionEvent(interaction)
                     }
                 }
             }
         }
         on<ButtonInteractionCreateEvent> {
-            tracer.withSpan("onButtonInteractionCreateEvent") {
-                it.setAllAttributes(getRequestAttributes(this))
+            tracer.inSpan("discord.button.interaction") {
+                setAttribute("discord.component.id", interaction.componentId)
+                setAttribute("discord.interaction.type", interaction.type.toString())
                 when (interaction.componentId) {
-                    "accept" -> withSpan("handleConfirmButtonClickAction") {
+                    "accept" -> tracer.inSpan("discord.button.accept") {
                         handler.handleConfirmButtonClickAction(interaction)
                     }
 
-                    "cancel" -> withSpan("handleCancelButtonClickAction") {
+                    "cancel" -> tracer.inSpan("discord.button.cancel") {
                         handler.handleCancelButtonClickAction(interaction)
                     }
                 }
@@ -97,4 +92,3 @@ class DiscordBotAdapter(
         }
     }
 }
-

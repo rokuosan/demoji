@@ -1,30 +1,23 @@
 package org.yaken.demoji.infrastructure.otel
 
 import io.opentelemetry.api.trace.Span
+import io.opentelemetry.api.trace.StatusCode
 import io.opentelemetry.api.trace.Tracer
-import org.yaken.demoji.infrastructure.config.OpenTelemetryConfig
 
-suspend fun <T> withTracer(name: String, block: suspend (Tracer) -> T): T {
-    val tracer = OpenTelemetryConfig.tracer
-    return block(tracer)
-}
-
-suspend fun <T> Tracer.withSpan(name: String, block: suspend (Span) -> T): T {
-    val span = this.spanBuilder(name).startSpan()
+suspend inline fun <T> Tracer.inSpan(
+    name: String,
+    crossinline block: suspend Span.() -> T,
+): T {
+    val span = spanBuilder(name).startSpan()
     return try {
-        span.makeCurrent().use{
-            block(span)
+        span.makeCurrent().use {
+            span.block()
         }
-    } finally {
-        span.end()
-    }
-}
-
-suspend fun <T> withSpan(name: String, block: suspend (Span) -> T): T {
-    val tracer = OpenTelemetryConfig.tracer
-    val span = tracer.spanBuilder(name).startSpan()
-    return try {
-        block(span)
+    } catch (t: Throwable) {
+        span.recordException(t)
+        span.setAttribute("error.type", t::class.qualifiedName ?: t.javaClass.name)
+        span.setStatus(StatusCode.ERROR, t.message ?: "Unhandled exception")
+        throw t
     } finally {
         span.end()
     }
