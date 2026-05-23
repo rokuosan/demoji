@@ -2,20 +2,31 @@ package org.yaken.demoji.infrastructure.config
 
 import dev.kord.common.entity.Snowflake
 
-object DiscordConfig {
-    /**
-     * Discord Botのトークン
-     */
-    val BotToken: String = System.getenv("DISCORD_BOT_TOKEN")
-        .let { it.ifBlank { null } }
-        ?: throw IllegalStateException("DISCORD_BOT_TOKEN is not set.")
+data class DiscordConfig(
+    val botToken: String,
+    val guildIds: List<Snowflake>,
+)
 
-    /**
-     * Discord Botがコマンドを登録するGuildのID。
-     */
-    val GuildIDs: List<Snowflake> = System.getenv("DISCORD_GUILD_ID")
-        ?.let { if (it.isBlank()) null else it.split(",")
-            .filter { line -> line.isNotBlank() }
-            .map { line -> Snowflake(line) } }
-        ?: throw IllegalStateException("DISCORD_GUILD_ID is not set.")
+object DiscordConfigLoader {
+    private const val botTokenEnv = "DISCORD_BOT_TOKEN"
+    private const val guildIdEnv = "DISCORD_GUILD_ID"
+
+    fun load(environment: Environment = SystemEnvironment): DiscordConfig {
+        val botToken = environment.get(botTokenEnv)
+            ?.takeIf { it.isNotBlank() }
+            ?: throw IllegalStateException("$botTokenEnv is not set.")
+
+        val guildIds = environment.get(guildIdEnv)
+            ?.takeIf { it.isNotBlank() }
+            ?.split(",")
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            ?.map { Snowflake(it) }
+            ?: throw IllegalStateException("$guildIdEnv is not set.")
+
+        return DiscordConfig(
+            botToken = botToken,
+            guildIds = guildIds,
+        )
+    }
 }

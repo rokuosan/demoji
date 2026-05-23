@@ -14,7 +14,6 @@ import io.opentelemetry.sdk.trace.export.BatchSpanProcessor
 object OpenTelemetryConfig {
     private const val instrumentationScopeName = "org.yaken.demoji"
     private const val serviceNameKey = "service.name"
-    private const val otlpTracesEndpointEnv = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
 
     lateinit var openTelemetry: OpenTelemetry
         private set
@@ -28,18 +27,17 @@ object OpenTelemetryConfig {
      * Otherwise, spans are written to the log exporter for local debugging.
      */
     fun initialize(
-        serviceName: String = "demoji",
-        otlpEndpoint: String? = System.getenv(otlpTracesEndpointEnv),
+        settings: OpenTelemetrySettings = OpenTelemetrySettings.fromEnvironment(),
     ): OpenTelemetry {
         if (this::openTelemetry.isInitialized) {
             return openTelemetry
         }
 
-        val exporter = createSpanExporter(otlpEndpoint)
+        val exporter = createSpanExporter(settings)
         val resource = Resource.getDefault().merge(
             Resource.create(
                 Attributes.of(
-                    AttributeKey.stringKey(serviceNameKey), serviceName,
+                    AttributeKey.stringKey(serviceNameKey), settings.serviceName,
                 ),
             ),
         )
@@ -66,19 +64,40 @@ object OpenTelemetryConfig {
         return openTelemetry
     }
 
-    private fun createSpanExporter(otlpEndpoint: String?): io.opentelemetry.sdk.trace.export.SpanExporter {
-        if (otlpEndpoint.isNullOrBlank()) {
+    private fun createSpanExporter(settings: OpenTelemetrySettings): io.opentelemetry.sdk.trace.export.SpanExporter {
+        if (settings.otlpTracesEndpoint.isNullOrBlank()) {
             return LoggingSpanExporter.create()
         }
 
         val builder = OtlpHttpSpanExporter.builder()
-            .setEndpoint(otlpEndpoint)
+            .setEndpoint(settings.otlpTracesEndpoint)
             .addHeader("Accept", "*/*")
 
-        System.getenv("MACKEREL_API_KEY")
+        settings.mackerelApiKey
             ?.takeIf { it.isNotBlank() }
             ?.let { builder.addHeader("Mackerel-Api-Key", it) }
 
         return builder.build()
+    }
+}
+
+data class OpenTelemetrySettings(
+    val serviceName: String = defaultServiceName,
+    val otlpTracesEndpoint: String? = null,
+    val mackerelApiKey: String? = null,
+) {
+    companion object {
+        private const val defaultServiceName = "demoji"
+        private const val otlpTracesEndpointEnv = "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
+        private const val mackerelApiKeyEnv = "MACKEREL_API_KEY"
+
+        fun fromEnvironment(environment: Environment = SystemEnvironment): OpenTelemetrySettings {
+            return OpenTelemetrySettings(
+                otlpTracesEndpoint = environment.get(otlpTracesEndpointEnv)
+                    ?.takeIf { it.isNotBlank() },
+                mackerelApiKey = environment.get(mackerelApiKeyEnv)
+                    ?.takeIf { it.isNotBlank() },
+            )
+        }
     }
 }

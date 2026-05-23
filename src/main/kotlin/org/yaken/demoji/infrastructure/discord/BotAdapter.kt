@@ -29,7 +29,7 @@ class DiscordBotAdapter(
     )
     private lateinit var bot: Kord
 
-    suspend fun start() = with(Kord(config.BotToken)) {
+    suspend fun start() = with(Kord(config.botToken)) {
         bot = this
         on<GuildChatInputCommandInteractionCreateEvent> {
             tracer.inSpan("discord.command.interaction") {
@@ -80,7 +80,7 @@ class DiscordBotAdapter(
             }
         }
 
-        config.GuildIDs.forEach {
+        config.guildIds.forEach {
             createGuildChatInputCommand(it, "emo", "絵文字を生成します")
         }
 
