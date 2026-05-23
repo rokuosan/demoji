@@ -1,13 +1,13 @@
 package org.yaken.demoji.infrastructure.generator
 
 import io.opentelemetry.api.trace.Tracer
-import io.opentelemetry.api.trace.StatusCode
 import org.yaken.demoji.common.Result
 import org.yaken.demoji.common.err
 import org.yaken.demoji.common.ok
 import org.yaken.demoji.domain.entity.Emoji
 import org.yaken.demoji.domain.service.EmojiGeneratorService
 import org.yaken.demoji.infrastructure.otel.inSpan
+import org.yaken.demoji.infrastructure.otel.markError
 import java.awt.AlphaComposite
 import java.awt.Font
 import java.awt.Graphics2D
@@ -29,9 +29,7 @@ class EmojiGenerator(
             try {
                 ok(build(emoji))
             } catch (e: Exception) {
-                recordException(e)
-                setAttribute("error.type", e::class.qualifiedName ?: e.javaClass.name)
-                setStatus(StatusCode.ERROR, e.message ?: "Failed to generate image")
+                markError(e, recordException = false, fallbackDescription = "Failed to generate image")
                 err(Error("Failed to generate image: ${e.message}"))
             }
         }
@@ -41,13 +39,9 @@ class EmojiGenerator(
         return tracer.inSpan("emoji.generate_preview_file") {
             try {
                 val image = build(emoji)
-                val tempFile = kotlin.io.path.createTempFile(suffix = ".png")
-                ImageIO.write(image, "PNG", tempFile.toFile())
-                ok(tempFile)
+                ok(writeTempFile(image))
             } catch (e: Exception) {
-                recordException(e)
-                setAttribute("error.type", e::class.qualifiedName ?: e.javaClass.name)
-                setStatus(StatusCode.ERROR, e.message ?: "Failed to generate image file")
+                markError(e, recordException = false, fallbackDescription = "Failed to generate image file")
                 err(Error("Failed to generate image file: ${e.message}"))
             }
         }
@@ -74,6 +68,12 @@ class EmojiGenerator(
         } else {
             Font("SansSerif", Font.BOLD, 32)
         }
+    }
+
+    private suspend fun writeTempFile(image: BufferedImage): Path = tracer.inSpan("emoji.write_preview_file") {
+        val tempFile = kotlin.io.path.createTempFile(suffix = ".png")
+        ImageIO.write(image, "PNG", tempFile.toFile())
+        tempFile
     }
 
     private suspend fun applyBackground(emoji: Emoji, graphics: Graphics2D) = tracer.inSpan("emoji.apply_background") {
