@@ -9,7 +9,7 @@ import org.yaken.demoji.infrastructure.discord.DiscordBotAdapter
 import org.yaken.demoji.infrastructure.generator.EmojiGenerator
 
 fun main() = runBlocking {
-    val openTelemetry = OpenTelemetryConfig.initialize(otlpEndpoint = "https://otlp-vaxila.mackerelio.com/v1/traces")
+    val openTelemetry = OpenTelemetryConfig.initialize()
     val logger = LoggerFactory.getLogger("demoji")
     val config = DiscordConfig
     val tracer = openTelemetry.getTracer("org.yaken.demoji")
