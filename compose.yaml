@@ -5,6 +5,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
     environment:
       DISCORD_BOT_TOKEN: ""
       DISCORD_GUILD_ID: ""
