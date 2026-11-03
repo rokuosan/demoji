@@ -1,0 +1,55 @@
+# Kubernetes manifests for demoji.
+#
+# The `demoji` Secret (DISCORD_BOT_TOKEN / DISCORD_GUILD_ID) is not in git.
+# Create it in the target namespace manually:
+#   kubectl -n demoji create secret generic demoji \
+#     --from-literal=DISCORD_BOT_TOKEN=<bot token> \
+#     --from-literal=DISCORD_GUILD_ID=<guild id>
+#
+# The image tag is `latest` for now; pin a dated tag for stricter GitOps.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demoji
+  labels:
+    app: demoji
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # avoid running two bot instances with the same token
+  selector:
+    matchLabels:
+      app: demoji
+  template:
+    metadata:
+      labels:
+        app: demoji
+    spec:
+      containers:
+        - name: demoji
+          image: ghcr.io/rokuosan/demoji:latest
+          envFrom:
+            - secretRef:
+                name: demoji
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
