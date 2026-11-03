@@ -10,7 +10,7 @@ COPY src ./src
 COPY fonts ./fonts
 
 RUN --mount=type=cache,target=/root/.gradle \
-    ./gradlew --no-daemon build
+    ./gradlew --no-daemon shadowJar
 
 RUN jdeps \
         --ignore-missing-deps \
