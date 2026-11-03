@@ -39,6 +39,7 @@ export DISCORD_GUILD_ID="123456789012345678"
 ## Run with Docker
 
 ```shell
+./gradlew --no-daemon shadowJar
 docker build -t demoji .
 docker run --rm --env-file .env demoji
 ```
@@ -46,6 +47,7 @@ docker run --rm --env-file .env demoji
 Docker Compose を使う場合は、`compose.yaml` の `DISCORD_BOT_TOKEN` と `DISCORD_GUILD_ID` に値を設定してから起動します。
 
 ```shell
+./gradlew --no-daemon shadowJar
 docker compose up --build
 ```
 
