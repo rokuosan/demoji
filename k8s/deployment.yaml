@@ -28,6 +28,7 @@ spec:
       containers:
         - name: demoji
           image: ghcr.io/rokuosan/demoji:latest
+          imagePullPolicy: Always
           envFrom:
             - secretRef:
                 name: demoji
