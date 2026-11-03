@@ -10,8 +10,7 @@ import dev.kord.gateway.Intent
 import dev.kord.gateway.PrivilegedIntent
 import io.opentelemetry.api.trace.Tracer
 import org.slf4j.Logger
-import org.yaken.demoji.application.usecase.EmojiFontUseCase
-import org.yaken.demoji.domain.service.EmojiGeneratorService
+import org.yaken.demoji.application.usecase.EmojiCreationUseCase
 import org.yaken.demoji.infrastructure.config.DiscordConfig
 import org.yaken.demoji.infrastructure.otel.inSpan
 
@@ -19,13 +18,11 @@ class DiscordBotAdapter(
     private val logger: Logger,
     private val config: DiscordConfig,
     private val tracer: Tracer,
-    private val generator: EmojiGeneratorService,
-    private val emojiFontUseCase: EmojiFontUseCase,
+    private val emojiCreationUseCase: EmojiCreationUseCase,
 ) {
     private val handler = Handler(
         tracer = tracer,
-        generator = generator,
-        emojiFontUseCase = emojiFontUseCase,
+        emojiCreationUseCase = emojiCreationUseCase,
     )
     private lateinit var bot: Kord
 

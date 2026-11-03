@@ -12,10 +12,8 @@ import dev.kord.core.entity.interaction.SelectMenuInteraction
 import dev.kord.rest.builder.component.option
 import dev.kord.rest.builder.message.actionRow
 import dev.kord.rest.builder.message.addFile
-import org.yaken.demoji.application.usecase.EmojiFontUseCase
+import org.yaken.demoji.application.usecase.EmojiCreationUseCase
 import org.yaken.demoji.common.Result
-import org.yaken.demoji.domain.entity.Emoji
-import org.yaken.demoji.domain.service.EmojiGeneratorService
 import org.yaken.demoji.infrastructure.discord.modal.createEmojiModal
 import io.opentelemetry.api.trace.Tracer
 import org.yaken.demoji.infrastructure.otel.inSpan
@@ -24,8 +22,7 @@ import java.nio.file.Files
 
 class Handler(
     private val tracer: Tracer,
-    private val generator: EmojiGeneratorService,
-    private val emojiFontUseCase: EmojiFontUseCase,
+    private val emojiCreationUseCase: EmojiCreationUseCase,
 ) {
     /**
      * /emo コマンドが実行された時のハンドラー。
@@ -50,27 +47,30 @@ class Handler(
      */
     suspend fun handleEmojiCreateModalSubmit(interaction: GuildModalSubmitInteraction) =
         tracer.inSpan("discord.modal_submit.handle_create_emoji") {
-            val emoji = Emoji.fromInteraction(interaction)
+            val result = emojiCreationUseCase.createDraft(
+                DiscordEmojiMapper.draftInputFromInteraction(interaction),
+            )
 
-            val result = emoji.validate()
-            if (result is Result.Err) {
-                interaction.deferEphemeralResponse().respond {
-                    content = result.error
+            when (result) {
+                is Result.Err -> {
+                    interaction.deferEphemeralResponse().respond {
+                        content = result.error
+                    }
+                    setAttribute("validation.failed", true)
+                    return@inSpan
                 }
-                setAttribute("validation.failed", true)
-                return@inSpan
-            }
 
-            val fonts = emojiFontUseCase.getAvailableFonts()
-
-            interaction.deferEphemeralResponse().respond {
-                this.content = "フォントを選択してください"
-                this.embeds = mutableListOf(emoji.toEmbed())
-                this.actionRow {
-                    this.stringSelect("font") {
-                        this.placeholder = "フォントを選択してください"
-                        for (font in fonts) {
-                            this.option(font.name, font.filename)
+                is Result.Ok -> {
+                    interaction.deferEphemeralResponse().respond {
+                        this.content = "フォントを選択してください"
+                        this.embeds = mutableListOf(DiscordEmojiMapper.toEmbed(result.value))
+                        this.actionRow {
+                            this.stringSelect("font") {
+                                this.placeholder = "フォントを選択してください"
+                                for (font in emojiCreationUseCase.getAvailableFonts()) {
+                                    this.option(font.name, font.filename)
+                                }
+                            }
                         }
                     }
                 }
@@ -85,7 +85,7 @@ class Handler(
      */
     suspend fun handleEmojiFontSelectionEvent(interaction: SelectMenuInteraction) {
         val fields = interaction.message.data.embeds.first()
-        val emoji = Emoji.fromEmbed(fields).copy(font = interaction.values.first())
+        val emoji = DiscordEmojiMapper.fromEmbed(fields).copy(font = interaction.values.first())
         with(emoji.validate()) {
             if (this is Result.Err) {
                 interaction.deferEphemeralResponse().respond {
@@ -95,7 +95,7 @@ class Handler(
             }
         }
 
-        val result = generator.generateImageToTempFile(emoji)
+        val result = emojiCreationUseCase.generatePreviewFile(emoji)
         when (result) {
             is Result.Err -> {
                 interaction.deferEphemeralResponse().respond {
@@ -109,7 +109,7 @@ class Handler(
                 try {
                     interaction.deferEphemeralMessageUpdate().edit {
                         this.addFile(result.value)
-                        this.embeds = mutableListOf(emoji.toEmbed())
+                        this.embeds = mutableListOf(DiscordEmojiMapper.toEmbed(emoji))
                         this.actionRow {
                             interactionButton(ButtonStyle.Primary, "accept") {
                                 this.label = "登録"
@@ -138,7 +138,7 @@ class Handler(
 
     suspend fun handleConfirmButtonClickAction(interaction: ButtonInteraction) {
         val field = interaction.message.data.embeds.first()
-        val emoji = Emoji.fromEmbed(field)
+        val emoji = DiscordEmojiMapper.fromEmbed(field)
         with(emoji.validate()) {
             if (this is Result.Err) {
                 interaction.deferEphemeralResponse().respond {
@@ -149,7 +149,7 @@ class Handler(
         }
 
         val guild = interaction.message.getGuild()
-        val result = generator.generateImageFromEmoji(emoji)
+        val result = emojiCreationUseCase.generateImage(emoji)
         when (result) {
             is Result.Err -> {
                 interaction.deferEphemeralResponse().respond {
